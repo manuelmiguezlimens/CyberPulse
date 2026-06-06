@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberPulse - SecOps & Threat Intelligence Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen font-sans antialiased">
+
+    <header class="border-b border-gray-800/80 bg-gray-950/70 backdrop-blur sticky top-0 z-50">
+        <div class="max-w-5xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <span class="text-2xl">⚡</span>
+                <h1 class="text-xl font-black tracking-wider bg-gradient-to-r from-blue-400 via-indigo-400 to-emerald-400 bg-clip-text text-transparent uppercase">
+                    CyberPulse
+                </h1>
+            </div>
+            <span class="text-xs bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full font-semibold border border-emerald-500/20 shadow-sm animate-pulse">
+                Live Service
+            </span>
+        </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto px-4 py-12">
+        
+        <div class="text-center mb-12">
+            <h2 class="text-3xl font-extrabold text-white sm:text-4xl tracking-tight mb-3">Threat Intelligence Platform</h2>
+            <p class="text-gray-400 max-w-xl mx-auto text-sm sm:text-base">
+                Audita credenciales vulneradas, correos expuestos y analiza la reputación de direcciones IP en tiempo real contra registros globales.
+            </p>
+        </div>
+
+        <div class="flex justify-center border-b border-gray-800 mb-8">
+            <button id="btn-passwords" class="px-6 py-3 border-b-2 border-blue-500 text-blue-400 font-bold text-sm tracking-wide transition-all focus:outline-none">
+                🔑 IDENTITY AUDIT
+            </button>
+            <button id="btn-ip" class="px-6 py-3 border-b-2 border-transparent text-gray-500 hover:text-gray-300 font-bold text-sm tracking-wide transition-all focus:outline-none">
+                🛡️ IP REPUTATION & GEO
+            </button>
+        </div>
+
+        <section id="sec-passwords" class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                <div class="bg-gray-900/50 border border-gray-800 rounded-xl p-6 shadow-xl backdrop-blur-sm flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-lg font-bold text-white mb-1">Auditoría de Cuentas / Emails</h3>
+                        <p class="text-xs text-gray-400 mb-6 uppercase tracking-wider">Verificación de identidad digital expuesta</p>
+                        
+                        <div class="space-y-3">
+                            <input type="email" id="input-email" placeholder="usuario@correo.com" 
+                                   class="w-full bg-gray-950 border border-gray-800 rounded-lg px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 text-sm font-mono transition-colors">
+                            <button id="search-email" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-lg text-sm transition-colors tracking-wide uppercase text-xs">
+                                Verificar Email
+                            </button>
+                        </div>
+                    </div>
+                    <div id="result-email" class="mt-4 hidden p-4 rounded-lg text-xs border font-mono font-medium"></div>
+                </div>
+
+                <div class="bg-gray-900/50 border border-gray-800 rounded-xl p-6 shadow-xl backdrop-blur-sm flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-lg font-bold text-white mb-1">Análisis de Claves (SHA-1)</h3>
+                        <p class="text-xs text-gray-400 mb-6 uppercase tracking-wider">Algoritmo de consulta por rango k-Anonymity</p>
+                        
+                        <div class="space-y-3">
+                            <input type="password" id="input-pass" placeholder="Introduce la contraseña..." 
+                                   class="w-full bg-gray-950 border border-gray-800 rounded-lg px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 text-sm font-mono transition-colors">
+                            <button id="search-pass" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-lg text-sm transition-colors tracking-wide uppercase text-xs">
+                                Analizar Clave
+                            </button>
+                        </div>
+                    </div>
+                    <div id="result-pass" class="mt-4 hidden p-4 rounded-lg text-xs border font-mono font-medium"></div>
+                </div>
+
+            </div>
+        </section>
+
+        <section id="sec-ip" class="space-y-6 hidden">
+            <div class="bg-gray-900/50 border border-gray-800 rounded-xl p-6 sm:p-8 shadow-xl backdrop-blur-sm">
+                <h3 class="text-lg font-bold text-white mb-1">Análisis de Reputación IP</h3>
+                <p class="text-xs text-gray-400 mb-6 uppercase tracking-wider">Geolocalización avanzada e inteligencia de amenazas globales</p>
+                
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <input type="text" id="input-ip" placeholder="Ej: 8.8.8.8 (Dejar vacío para IP actual)" 
+                           class="flex-1 bg-gray-950 border border-gray-800 rounded-lg px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500 text-sm font-mono transition-colors">
+                    <button id="search-ip" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-3 rounded-lg text-sm transition-colors whitespace-nowrap tracking-wide">
+                        ESCANEAR DIRECCIÓN IP
+                    </button>
+                </div>
+                
+                <div id="result-ip" class="mt-6 hidden grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-gray-950 border border-gray-800 rounded-lg p-5 flex flex-col justify-between">
+                        <div>
+                            <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Datos de Ubicación y Red</h4>
+                            <div class="space-y-2 text-sm font-mono" id="geo-data"></div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-950 border border-gray-800 rounded-lg p-5 flex flex-col justify-between">
+                        <div>
+                            <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Nivel de Amenaza</h4>
+                            <div class="space-y-3" id="threat-data"></div>
+                        </div>
+                        
+                        <div class="mt-4 pt-4 border-t border-gray-800/60">
+                            <button id="btn-report-ip" class="w-full bg-red-950/30 hover:bg-red-900/40 border border-red-900/50 text-red-400 font-bold py-2 px-4 rounded text-xs tracking-wider transition-colors uppercase">
+                                🚨 Reportar actividad maliciosa
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="text-center py-8 text-xs text-gray-600 border-t border-gray-900 mt-12 font-mono">
+        <p>© 2026 CyberPulse Platform | Diseñado por Manuel</p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
