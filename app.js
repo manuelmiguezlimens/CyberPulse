@@ -136,10 +136,11 @@ btnSearchIp.addEventListener('click', analyzeIp);
 async function analyzeIp() {
     const ip = inputIp.value.trim();
 
-    // ipwho.is funciona nativamente con HTTPS y permite consultas vacías para la IP actual
+    // ipapi.co permite HTTPS y tiene un formato muy limpio.
+    // Si no hay IP, usamos 'json' a secas para que detecte la IP del usuario.
     const url = ip 
-        ? `https://ipwho.is/${encodeURIComponent(ip)}` 
-        : `https://ipwho.is/`;
+        ? `https://ipapi.co/${encodeURIComponent(ip)}/json/` 
+        : `https://ipapi.co/json/`;
 
     try {
         const response = await fetch(url);
@@ -150,24 +151,24 @@ async function analyzeIp() {
 
         const data = await response.json();
 
-        // ipwho.is devuelve un booleano 'success' para validar si la consulta fue correcta
-        if (!data.success) {
-            alert(`Error: ${data.message || 'Dirección IP no válida o no encontrada.'}`);
+        // ipapi.co devuelve una propiedad 'error' (true) si la IP no es válida
+        if (data.error) {
+            alert(`Error: ${data.reason || 'Dirección IP no válida o no encontrada.'}`);
             return;
         }
 
         currentScannedIp = data.ip;
         resultIp.classList.remove('hidden');
 
-        // Adaptación del mapeo de variables según la estructura JSON de ipwho.is
-        const isp = data.connection?.isp || 'N/A';
-        const asn = data.connection?.asn || 'N/A';
+        // Mapeo de variables según la estructura JSON oficial de ipapi.co
+        const isp = data.org || 'N/A'; // Org o asn suele traer el proveedor
+        const asn = data.asn || 'N/A';
         const city = data.city || 'N/A';
         const countryCode = data.country_code || 'N/A';
         const latitude = data.latitude || 0;
         const longitude = data.longitude || 0;
 
-        // Inyección limpia del HTML estructurado con Tailwind CSS
+        // Inyección del HTML estructurado
         geoDataContainer.innerHTML = `
             <div class="flex justify-between border-b border-gray-900 pb-1">
                 <span class="text-gray-500">IP OBJECT</span>
@@ -181,7 +182,7 @@ async function analyzeIp() {
 
             <div class="flex justify-between border-b border-gray-900 pb-1">
                 <span class="text-gray-500">ASN</span>
-                <span class="text-gray-400 text-xs text-right">ASN${asn}</span>
+                <span class="text-gray-400 text-xs text-right">${asn}</span>
             </div>
 
             <div class="flex justify-between border-b border-gray-900 pb-1">
@@ -195,7 +196,6 @@ async function analyzeIp() {
             </div>
         `;
 
-        // Si tienes una función secundaria para procesar métricas adicionales, se ejecuta aquí
         if (typeof renderThreatMetrics === "function") {
             renderThreatMetrics(currentScannedIp, isp);
         }
