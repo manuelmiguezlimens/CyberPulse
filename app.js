@@ -119,7 +119,7 @@ async function checkEmail() {
 }
 
 // ==========================================
-// 4. INTELIGENCIA DE AMENAZAS E IP GEO (DEFINITIVO)
+// 4. INTELIGENCIA DE AMENAZAS E IP GEO
 // ==========================================
 const inputIp = document.getElementById('input-ip');
 const btnSearchIp = document.getElementById('search-ip');
@@ -135,7 +135,7 @@ btnSearchIp.addEventListener('click', analyzeIp);
 async function analyzeIp() {
     const ip = inputIp.value.trim();
 
-    // API que no bloquea a GitHub Pages bajo HTTPS
+    // End-point seguro compatible con HTTPS y entornos de producción en GitHub Pages
     const url = ip 
         ? `https://api.ipapi.is/?ip=${encodeURIComponent(ip)}` 
         : `https://api.ipapi.is/`;
@@ -157,7 +157,7 @@ async function analyzeIp() {
         currentScannedIp = data.ip;
         resultIp.classList.remove('hidden');
 
-        // Variables mapeadas según el JSON de ipapi.is
+        // Mapeo adaptado para el JSON estructurado de ipapi.is
         const isp = data.asn?.org || 'N/A';
         const asn = data.asn?.asn ? `ASN${data.asn.asn}` : 'N/A';
         const city = data.location?.city || 'N/A';
@@ -165,7 +165,7 @@ async function analyzeIp() {
         const latitude = data.location?.latitude || 0;
         const longitude = data.location?.longitude || 0;
 
-        // Renderizado de datos geográficos
+        // Renderizado del contenedor de Geolocalización
         geoDataContainer.innerHTML = `
             <div class="flex justify-between border-b border-gray-900 pb-1">
                 <span class="text-gray-500">IP OBJECT</span>
@@ -193,7 +193,7 @@ async function analyzeIp() {
             </div>
         `;
 
-        // Aquí se llama de forma segura a la nueva función de abajo
+        // Llamada segura para pintar el porcentaje y barra de amenaza
         if (typeof renderThreatMetrics === "function") {
             renderThreatMetrics(currentScannedIp, isp);
         }
@@ -204,7 +204,7 @@ async function analyzeIp() {
     }
 }
 
-// Lógica de reportes locales en el navegador
+// Lógica para acumular reportes locales en el almacenamiento del navegador
 btnReportIp.addEventListener('click', () => {
     if (!currentScannedIp) return;
     let localReports = JSON.parse(localStorage.getItem('cyberpulse_reports')) || {};
@@ -213,7 +213,7 @@ btnReportIp.addEventListener('click', () => {
     analyzeIp();
 });
 
-// NUEVA FUNCIÓN ADAPTADA PARA MOSTRAR EL PORCENTAJE DE AMENAZA
+// Función secundaria para calcular y renderizar las métricas de riesgo
 function renderThreatMetrics(ip, isp) {
     if (!threatDataContainer) return;
 
@@ -224,9 +224,11 @@ function renderThreatMetrics(ip, isp) {
     let threatStatus = "CLEAN / LOW RISK";
     let statusClass = "text-emerald-400";
 
+    // Si tiene reportes manuales locales, incrementa drásticamente el score
     if (reportCount > 0) {
         threatScore = Math.min(25 * reportCount, 95); 
     } else {
+        // Incremento leve preventivo si proviene de centros de datos/hosting corporativos
         const ispUpper = isp.toUpperCase();
         if (ispUpper.includes("GOOGLE") || ispUpper.includes("CLOUDFLARE") || ispUpper.includes("AMAZON") || ispUpper.includes("HOSTING")) {
             threatScore = 15; 
@@ -235,6 +237,7 @@ function renderThreatMetrics(ip, isp) {
         }
     }
 
+    // Clasificación de la severidad del riesgo
     if (threatScore >= 70) {
         threatStatus = "CRITICAL / HIGH THREAT";
         statusClass = "text-red-500 font-bold";
@@ -246,6 +249,7 @@ function renderThreatMetrics(ip, isp) {
         statusClass = "text-blue-400";
     }
 
+    // Inyección de la barra visual de progreso y métricas
     threatDataContainer.innerHTML = `
         <div class="flex justify-between border-b border-gray-900 pb-1">
             <span class="text-gray-500">THREAT LEVEL</span>
@@ -270,12 +274,3 @@ function renderThreatMetrics(ip, isp) {
         </div>
     `;
 }
-
-// Lógica local para simular o procesar reportes guardados en el navegador
-btnReportIp.addEventListener('click', () => {
-    if (!currentScannedIp) return;
-    let localReports = JSON.parse(localStorage.getItem('cyberpulse_reports')) || {};
-    localReports[currentScannedIp] = { count: (localReports[currentScannedIp]?.count || 0) + 1 };
-    localStorage.setItem('cyberpulse_reports', JSON.stringify(localReports));
-    analyzeIp();
-});
