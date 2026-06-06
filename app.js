@@ -134,82 +134,72 @@ btnSearchIp.addEventListener('click', analyzeIp);
 
 async function analyzeIp() {
     const ip = inputIp.value.trim();
-    const url = ip ? `http://ip-api.com/json/${ip}?fields=status,message,country,countryCode,regionName,city,zip,lat,lon,timezone,isp,org,as,query` : `http://ip-api.com/json/?fields=status,message,country,countryCode,regionName,city,zip,lat,lon,timezone,isp,org,as,query`;
+
+    const url = ip
+        ? `https://ipwho.is/${encodeURIComponent(ip)}`
+        : `https://ipwho.is/`;
 
     resultIp.classList.add('hidden');
 
     try {
         const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
         const data = await response.json();
 
-        if (data.status === 'fail') {
-            alert(`Error en el formato de IP: ${data.message}`);
+        if (!data.success) {
+            alert(`Error: ${data.message || 'IP no válida'}`);
             return;
         }
 
-        currentScannedIp = data.query;
+        currentScannedIp = data.ip;
         resultIp.classList.remove('hidden');
 
+        const isp = data.connection?.isp || 'N/A';
+
         geoDataContainer.innerHTML = `
-            <div class="flex justify-between border-b border-gray-900 pb-1"><span class="text-gray-500">IP OBJECT</span> <span class="text-blue-400 font-bold">${data.query}</span></div>
-            <div class="flex justify-between border-b border-gray-900 pb-1"><span class="text-gray-500">PROVEEDOR</span> <span class="text-gray-300 text-right text-xs">${data.isp}</span></div>
-            <div class="flex justify-between border-b border-gray-900 pb-1"><span class="text-gray-500">ASN</span> <span class="text-gray-400 text-xs text-right">${data.as || 'N/A'}</span></div>
-            <div class="flex justify-between border-b border-gray-900 pb-1"><span class="text-gray-500">UBICACIÓN</span> <span class="text-gray-300">${data.city} (${data.countryCode})</span></div>
-            <div class="flex justify-between"><span class="text-gray-500">COORDENADAS</span> <span class="text-gray-400">${data.lat}, ${data.lon}</span></div>
+            <div class="flex justify-between border-b border-gray-900 pb-1">
+                <span class="text-gray-500">IP OBJECT</span>
+                <span class="text-blue-400 font-bold">${data.ip}</span>
+            </div>
+
+            <div class="flex justify-between border-b border-gray-900 pb-1">
+                <span class="text-gray-500">PROVEEDOR</span>
+                <span class="text-gray-300 text-right text-xs">${isp}</span>
+            </div>
+
+            <div class="flex justify-between border-b border-gray-900 pb-1">
+                <span class="text-gray-500">ASN</span>
+                <span class="text-gray-400 text-xs text-right">
+                    ${data.connection?.asn || 'N/A'}
+                </span>
+            </div>
+
+            <div class="flex justify-between border-b border-gray-900 pb-1">
+                <span class="text-gray-500">UBICACIÓN</span>
+                <span class="text-gray-300">
+                    ${data.city || 'N/A'} (${data.country_code || 'N/A'})
+                </span>
+            </div>
+
+            <div class="flex justify-between">
+                <span class="text-gray-500">COORDENADAS</span>
+                <span class="text-gray-400">
+                    ${data.latitude}, ${data.longitude}
+                </span>
+            </div>
         `;
 
-        renderThreatMetrics(data.query, data.isp);
-    } catch {
+        renderThreatMetrics(data.ip, isp);
+
+    } catch (error) {
+        console.error(error);
         alert("Fallo al consultar la base de datos geográfica.");
     }
 }
-
-function renderThreatMetrics(ip, isp) {
-    const localReports = JSON.parse(localStorage.getItem('cyberpulse_reports')) || {};
-    const hasBeenReported = !!localReports[ip];
-    const reportCount = hasBeenReported ? localReports[ip].count : (Math.abs(ip.split('.').reduce((a, b) => parseInt(a) + parseInt(b), 0)) % 4); 
-
-    let baseScore = 0;
-    if (isp.toLowerCase().includes('hosting') || isp.toLowerCase().includes('cloud') || isp.toLowerCase().includes('vps')) {
-        baseScore += 45;
-    }
-    if (hasBeenReported) baseScore += 50;
-    
-    const finalScore = Math.min(baseScore + (reportCount * 12), 100);
-    
-    let colorClass = "text-emerald-400";
-    let statusText = "CONFIDENCIALIDAD (LIMPIA)";
-    
-    if (finalScore > 25 && finalScore <= 60) {
-        colorClass = "text-yellow-500";
-        statusText = "ACTIVIDAD SOSPECHOSA";
-    } else if (finalScore > 60) {
-        colorClass = "text-red-500";
-        statusText = "HIGH ABUSE RATIO / MALICIOUS";
-    }
-
-    threatDataContainer.innerHTML = `
-        <div class="text-center py-2 bg-gray-950 rounded border border-gray-900">
-            <span class="block text-xs font-bold text-gray-500 uppercase">Abuse Score Ratification</span>
-            <span class="text-3xl font-black ${colorClass}">${finalScore}%</span>
-        </div>
-        <div class="space-y-2 text-xs font-mono mt-3">
-            <div class="flex justify-between"><span class="text-gray-500">STATUS</span> <span class="${colorClass} font-bold">${statusText}</span></div>
-            <div class="flex justify-between"><span class="text-gray-500">REPORTES ACTIVOS</span> <span class="text-gray-300 font-bold">${reportCount}</span></div>
-        </div>
-    `;
-
-    if (hasBeenReported) {
-        btnReportIp.innerText = "🚨 IP MARCADA EN LISTA NEGRA LOCAL";
-        btnReportIp.disabled = true;
-        btnReportIp.className = "w-full bg-red-950/20 border border-red-900/30 text-red-500/50 font-bold py-2 px-4 rounded text-xs tracking-wider cursor-not-allowed uppercase";
-    } else {
-        btnReportIp.innerText = "🚨 Reportar actividad maliciosa";
-        btnReportIp.disabled = false;
-        btnReportIp.className = "w-full bg-red-950/30 hover:bg-red-900/40 border border-red-900/50 text-red-400 font-bold py-2 px-4 rounded text-xs tracking-wider transition-colors uppercase";
-    }
-}
-
 btnReportIp.addEventListener('click', () => {
     if (!currentScannedIp) return;
     let localReports = JSON.parse(localStorage.getItem('cyberpulse_reports')) || {};
