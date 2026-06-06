@@ -119,13 +119,14 @@ async function checkEmail() {
 }
 
 // ==========================================
-// 4. INTELIGENCIA DE AMENAZAS E IP GEO
+// 4. INTELIGENCIA DE AMENAZAS E IP GEO (CORREGIDO HTTPS)
 // ==========================================
 const inputIp = document.getElementById('input-ip');
 const btnSearchIp = document.getElementById('search-ip');
 const resultIp = document.getElementById('result-ip');
 const geoDataContainer = document.getElementById('geo-data');
-const threatDataContainer = document.getElementById('threat-data');
+// Asegúrate de que este elemento existe en tu index.html o coméntalo si da error
+const threatDataContainer = document.getElementById('threat-data'); 
 const btnReportIp = document.getElementById('btn-report-ip');
 
 let currentScannedIp = "";
@@ -135,35 +136,42 @@ btnSearchIp.addEventListener('click', analyzeIp);
 async function analyzeIp() {
     const ip = inputIp.value.trim();
 
-    const url = ip
-        ? `https://ipwho.is/${encodeURIComponent(ip)}`
+    // ipwho.is funciona nativamente con HTTPS y permite consultas vacías para la IP actual
+    const url = ip 
+        ? `https://ipwho.is/${encodeURIComponent(ip)}` 
         : `https://ipwho.is/`;
-
-    resultIp.classList.add('hidden');
 
     try {
         const response = await fetch(url);
-
+        
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
+            throw new Error(`HTTP Error: ${response.status}`);
         }
 
         const data = await response.json();
 
+        // ipwho.is devuelve un booleano 'success' para validar si la consulta fue correcta
         if (!data.success) {
-            alert(`Error: ${data.message || 'IP no válida'}`);
+            alert(`Error: ${data.message || 'Dirección IP no válida o no encontrada.'}`);
             return;
         }
 
         currentScannedIp = data.ip;
         resultIp.classList.remove('hidden');
 
+        // Adaptación del mapeo de variables según la estructura JSON de ipwho.is
         const isp = data.connection?.isp || 'N/A';
+        const asn = data.connection?.asn || 'N/A';
+        const city = data.city || 'N/A';
+        const countryCode = data.country_code || 'N/A';
+        const latitude = data.latitude || 0;
+        const longitude = data.longitude || 0;
 
+        // Inyección limpia del HTML estructurado con Tailwind CSS
         geoDataContainer.innerHTML = `
             <div class="flex justify-between border-b border-gray-900 pb-1">
                 <span class="text-gray-500">IP OBJECT</span>
-                <span class="text-blue-400 font-bold">${data.ip}</span>
+                <span class="text-emerald-400 font-bold font-mono">${currentScannedIp}</span>
             </div>
 
             <div class="flex justify-between border-b border-gray-900 pb-1">
@@ -173,33 +181,32 @@ async function analyzeIp() {
 
             <div class="flex justify-between border-b border-gray-900 pb-1">
                 <span class="text-gray-500">ASN</span>
-                <span class="text-gray-400 text-xs text-right">
-                    ${data.connection?.asn || 'N/A'}
-                </span>
+                <span class="text-gray-400 text-xs text-right">ASN${asn}</span>
             </div>
 
             <div class="flex justify-between border-b border-gray-900 pb-1">
                 <span class="text-gray-500">UBICACIÓN</span>
-                <span class="text-gray-300">
-                    ${data.city || 'N/A'} (${data.country_code || 'N/A'})
-                </span>
+                <span class="text-gray-300">${city} (${countryCode})</span>
             </div>
 
             <div class="flex justify-between">
                 <span class="text-gray-500">COORDENADAS</span>
-                <span class="text-gray-400">
-                    ${data.latitude}, ${data.longitude}
-                </span>
+                <span class="text-gray-400 font-mono text-xs">${latitude}, ${longitude}</span>
             </div>
         `;
 
-        renderThreatMetrics(data.ip, isp);
+        // Si tienes una función secundaria para procesar métricas adicionales, se ejecuta aquí
+        if (typeof renderThreatMetrics === "function") {
+            renderThreatMetrics(currentScannedIp, isp);
+        }
 
     } catch (error) {
-        console.error(error);
-        alert("Fallo al consultar la base de datos geográfica.");
+        console.error("Error en la petición de Geolocalización:", error);
+        alert("Fallo al consultar la base de datos geográfica segura.");
     }
 }
+
+// Lógica local para simular o procesar reportes guardados en el navegador
 btnReportIp.addEventListener('click', () => {
     if (!currentScannedIp) return;
     let localReports = JSON.parse(localStorage.getItem('cyberpulse_reports')) || {};
