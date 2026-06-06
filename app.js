@@ -119,13 +119,12 @@ async function checkEmail() {
 }
 
 // ==========================================
-// 4. INTELIGENCIA DE AMENAZAS E IP GEO (CORREGIDO HTTPS)
+// 4. INTELIGENCIA DE AMENAZAS E IP GEO (DEFINITIVO)
 // ==========================================
 const inputIp = document.getElementById('input-ip');
 const btnSearchIp = document.getElementById('search-ip');
 const resultIp = document.getElementById('result-ip');
 const geoDataContainer = document.getElementById('geo-data');
-// Asegúrate de que este elemento existe en tu index.html o coméntalo si da error
 const threatDataContainer = document.getElementById('threat-data'); 
 const btnReportIp = document.getElementById('btn-report-ip');
 
@@ -136,11 +135,10 @@ btnSearchIp.addEventListener('click', analyzeIp);
 async function analyzeIp() {
     const ip = inputIp.value.trim();
 
-    // ipapi.co permite HTTPS y tiene un formato muy limpio.
-    // Si no hay IP, usamos 'json' a secas para que detecte la IP del usuario.
+    // API que no bloquea a GitHub Pages bajo HTTPS
     const url = ip 
-        ? `https://ipapi.co/${encodeURIComponent(ip)}/json/` 
-        : `https://ipapi.co/json/`;
+        ? `https://api.ipapi.is/?ip=${encodeURIComponent(ip)}` 
+        : `https://api.ipapi.is/`;
 
     try {
         const response = await fetch(url);
@@ -151,24 +149,23 @@ async function analyzeIp() {
 
         const data = await response.json();
 
-        // ipapi.co devuelve una propiedad 'error' (true) si la IP no es válida
-        if (data.error) {
-            alert(`Error: ${data.reason || 'Dirección IP no válida o no encontrada.'}`);
+        if (data.is_valid === false) {
+            alert("Dirección IP no válida.");
             return;
         }
 
         currentScannedIp = data.ip;
         resultIp.classList.remove('hidden');
 
-        // Mapeo de variables según la estructura JSON oficial de ipapi.co
-        const isp = data.org || 'N/A'; // Org o asn suele traer el proveedor
-        const asn = data.asn || 'N/A';
-        const city = data.city || 'N/A';
-        const countryCode = data.country_code || 'N/A';
-        const latitude = data.latitude || 0;
-        const longitude = data.longitude || 0;
+        // Variables mapeadas según el JSON de ipapi.is
+        const isp = data.asn?.org || 'N/A';
+        const asn = data.asn?.asn ? `ASN${data.asn.asn}` : 'N/A';
+        const city = data.location?.city || 'N/A';
+        const countryCode = data.location?.country_code || 'N/A';
+        const latitude = data.location?.latitude || 0;
+        const longitude = data.location?.longitude || 0;
 
-        // Inyección del HTML estructurado
+        // Renderizado de datos geográficos
         geoDataContainer.innerHTML = `
             <div class="flex justify-between border-b border-gray-900 pb-1">
                 <span class="text-gray-500">IP OBJECT</span>
@@ -196,6 +193,7 @@ async function analyzeIp() {
             </div>
         `;
 
+        // Aquí se llama de forma segura a la nueva función de abajo
         if (typeof renderThreatMetrics === "function") {
             renderThreatMetrics(currentScannedIp, isp);
         }
@@ -204,6 +202,73 @@ async function analyzeIp() {
         console.error("Error en la petición de Geolocalización:", error);
         alert("Fallo al consultar la base de datos geográfica segura.");
     }
+}
+
+// Lógica de reportes locales en el navegador
+btnReportIp.addEventListener('click', () => {
+    if (!currentScannedIp) return;
+    let localReports = JSON.parse(localStorage.getItem('cyberpulse_reports')) || {};
+    localReports[currentScannedIp] = { count: (localReports[currentScannedIp]?.count || 0) + 1 };
+    localStorage.setItem('cyberpulse_reports', JSON.stringify(localReports));
+    analyzeIp();
+});
+
+// NUEVA FUNCIÓN ADAPTADA PARA MOSTRAR EL PORCENTAJE DE AMENAZA
+function renderThreatMetrics(ip, isp) {
+    if (!threatDataContainer) return;
+
+    let localReports = JSON.parse(localStorage.getItem('cyberpulse_reports')) || {};
+    let reportCount = localReports[ip]?.count || 0;
+
+    let threatScore = 0;
+    let threatStatus = "CLEAN / LOW RISK";
+    let statusClass = "text-emerald-400";
+
+    if (reportCount > 0) {
+        threatScore = Math.min(25 * reportCount, 95); 
+    } else {
+        const ispUpper = isp.toUpperCase();
+        if (ispUpper.includes("GOOGLE") || ispUpper.includes("CLOUDFLARE") || ispUpper.includes("AMAZON") || ispUpper.includes("HOSTING")) {
+            threatScore = 15; 
+        } else {
+            threatScore = 0; 
+        }
+    }
+
+    if (threatScore >= 70) {
+        threatStatus = "CRITICAL / HIGH THREAT";
+        statusClass = "text-red-500 font-bold";
+    } else if (threatScore >= 30) {
+        threatStatus = "SUSPICIOUS / MEDIUM RISK";
+        statusClass = "text-yellow-500 font-bold";
+    } else if (threatScore > 0) {
+        threatStatus = "MONITORED / MINOR RISK";
+        statusClass = "text-blue-400";
+    }
+
+    threatDataContainer.innerHTML = `
+        <div class="flex justify-between border-b border-gray-900 pb-1">
+            <span class="text-gray-500">THREAT LEVEL</span>
+            <span class="${statusClass}">${threatStatus}</span>
+        </div>
+
+        <div class="mt-2">
+            <div class="flex justify-between text-xs text-gray-400 mb-1">
+                <span>RISK SCORE</span>
+                <span class="font-mono font-bold">${threatScore}%</span>
+            </div>
+            <div class="w-full bg-gray-900 rounded-full h-2 overflow-hidden border border-gray-800">
+                <div class="h-full rounded-full transition-all duration-500 ${
+                    threatScore >= 70 ? 'bg-red-500' : threatScore >= 30 ? 'bg-yellow-500' : 'bg-emerald-500'
+                }" style="width: ${threatScore}%"></div>
+            </div>
+        </div>
+
+        <div class="flex justify-between border-b border-gray-900 pb-1 mt-3">
+            <span class="text-gray-500">REPORTES LOCALES</span>
+            <span class="text-gray-300 font-mono">${reportCount}</span>
+        </div>
+    `;
 }
 
 // Lógica local para simular o procesar reportes guardados en el navegador
